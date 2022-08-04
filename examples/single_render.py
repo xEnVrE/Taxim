@@ -16,11 +16,11 @@ from renderer.DepthRender import TacRender
 if __name__ == "__main__":
     # load object
     # YCB
-    # obj_name = "005_tomato_soup_can"
-    # obj_path = osp.join("..", "data", obj_name, "google_512k", "nontextured.stl")
+    obj_name = "005_tomato_soup_can"
+    obj_path = osp.join("..", "data", obj_name, "google_512k", "nontextured.stl")
     # Google Scan
-    obj_name = "Threshold_Porcelain_Pitcher_White"
-    obj_path = osp.join("..", "data", obj_name, "meshes", "model.obj")
+    # obj_name = "Threshold_Porcelain_Pitcher_White"
+    # obj_path = osp.join("..", "data", obj_name, "meshes", "model.obj")
 
     # load gelsight
     gel_path = osp.join("..", "calibs", "gel_surface_mm.obj")
@@ -28,6 +28,7 @@ if __name__ == "__main__":
     calib_path = osp.join("..", "calibs")
     # save results
     save_path = osp.join("..", "results", "tests")
+    os.makedirs(save_path, exist_ok = True)
 
     # whether use live render or offline render
     # live = True
