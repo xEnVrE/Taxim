@@ -14,19 +14,26 @@ import time
 import torch
 import pyrender
 from .GelSightLoader import GelSightLoader
+from .DigitLoader import DigitLoader
 from .ObjectLoader import ObjectLoader
-from . import config
+# from . import config
+from . import config_digit as config
 from .utils import *
 
-from .basics import sensorParams as psp
+# from .basics import sensorParams as psp
+from .basics import sensorParamsDigit as psp
 from .basics.CalibData import CalibData
 
 class TacRender:
 
-    def __init__(self, obj_path, gel_path, calib_path):
+    def __init__(self, obj_path, gel_path, calib_path, sensor_name = 'gelsight'):
         # load object and gelsight model
         self.obj_loader = ObjectLoader(obj_path)
-        self.gel_loader = GelSightLoader(gel_path)
+        if sensor_name == 'gelsight':
+            self.gel_loader = GelSightLoader(gel_path)
+        elif sensor_name == 'digit':
+            self.gel_loader = DigitLoader(gel_path)
+
         # create a pyrender scene
         self.scene = pyrender.Scene(ambient_light=np.array([0.2, 0.2, 0.2, 1.0]))
         # create nodes in the scene
@@ -64,6 +71,7 @@ class TacRender:
 
         ### first time with a new gelpad model, generate new bg depth & color
         self.raw_bg = self.render_bg()
+        # np.save(osp.join(calib_path, "height_map.npy"),self.raw_bg)
         # self.bg_depth = self.correct_height_map(self.render_bg())
         # np.save(osp.join(calib_path, "depth_bg.npy"),self.bg_depth)
         # self.real_bg = self.taxim_render_bg(self.bg_depth)
@@ -99,12 +107,12 @@ class TacRender:
         params_b = self.calib_data.grad_b[idx_x,idx_y,:]
         params_b = params_b.reshape((psp.h*psp.w), params_b.shape[2])
 
-        est_r = np.sum(self.A * params_r,axis = 1)
-        est_g = np.sum(self.A * params_g,axis = 1)
-        est_b = np.sum(self.A * params_b,axis = 1)
-        sim_img_r[:,:,0] = est_r.reshape((psp.h,psp.w))
-        sim_img_r[:,:,1] = est_g.reshape((psp.h,psp.w))
-        sim_img_r[:,:,2] = est_b.reshape((psp.h,psp.w))
+        est_r = torch.sum(self.A * params_r,axis = 1)
+        est_g = torch.sum(self.A * params_g,axis = 1)
+        est_b = torch.sum(self.A * params_b,axis = 1)
+        sim_img_r[:,:,0] = est_r.reshape((psp.h,psp.w)).cpu()
+        sim_img_r[:,:,1] = est_g.reshape((psp.h,psp.w)).cpu()
+        sim_img_r[:,:,2] = est_b.reshape((psp.h,psp.w)).cpu()
         # get the bg w/o dome shape
         real_bg = self.bg_proc - sim_img_r
         return real_bg
