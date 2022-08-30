@@ -75,52 +75,12 @@ class TacRender:
         # load tactile bg
         self.real_bg = np.load(osp.join(calib_path,"real_bg.npy"), allow_pickle=True)
 
-        # small image config
-        # polytable
-        calib_data_small = osp.join(calib_path, "polycalib_small.npz")
-        self.calib_data_small = CalibData(calib_data_small)
-        # raw calibration data
-        rawData_small = osp.join(calib_path, "dataPack_small.npz")
-        data_file_small = np.load(rawData_small, allow_pickle=True)
-        self.f0_small = data_file_small['f0']
-        self.sim_bg_small = np.load(osp.join(calib_path, 'real_bg_small.npy'))
-
         use_cuda = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if use_cuda else "cpu")
-        ## tactile image config
-        bins = psp.numBins_small
-        [xx, yy] = np.meshgrid(range(psp.w_small), range(psp.h_small))
-        xf = xx.flatten()
-        yf = yy.flatten()
-        self.A_small = np.array([xf*xf,yf*yf,xf*yf,xf,yf,np.ones(psp.h_small*psp.w_small)]).T
-        binm = bins - 1
-        self.x_binr_small = 0.5*np.pi/binm # x [0,pi/2]
-        self.y_binr_small = 2*np.pi/binm # y [-pi, pi]
-
-        self.A_small = torch.from_numpy(self.A_small).to(self.device)
-        self.calib_data_small.grad_r = torch.from_numpy(self.calib_data_small.grad_r).to(self.device)
-        self.calib_data_small.grad_g = torch.from_numpy(self.calib_data_small.grad_g).to(self.device)
-        self.calib_data_small.grad_b = torch.from_numpy(self.calib_data_small.grad_b).to(self.device)
-
-        ### first time with a new gelpad model, generate new bg depth & color
-        # self.bg_depth = self.correct_height_map(self.render_bg())
-        # np.save(osp.join(calib_path, "depth_bg.npy"),self.bg_depth)
-        # self.real_bg = self.taxim_render_bg(self.bg_depth)
-        # np.save(osp.join(calib_path, "real_bg.npy"), self.real_bg)
-        ###
-        # load depth bg
-        # load tactile bg
-        self.bg_depth_small = cv2.resize(self.bg_depth, dsize=(psp.w_small, psp.h_small), interpolation=cv2.INTER_CUBIC)
-        self.real_bg_small = np.load(osp.join(calib_path,"real_bg_small.npy"), allow_pickle=True)
 
     def correct_height_map(self, height_map):
         # move the center of depth to the origin
         height_map = (height_map-config.cam2gel) * -1000 / psp.pixmm
-        return height_map
-
-    def correct_height_map_small(self, height_map):
-        # move the center of depth to the origin
-        height_map = (height_map-config.cam2gel) * -1000 / psp.pixmm_small
         return height_map
 
     def taxim_render_bg(self, depth):
@@ -266,57 +226,6 @@ class TacRender:
         # print("simulate time is ", end-start)
         return height_map, contact_mask, tactile_img
 
-    def taxim_small_render(self, depth, press_depth):
-        # start = time.time()
-        depth = cv2.resize(depth, dsize=(psp.w_small, psp.h_small), interpolation=cv2.INTER_CUBIC)
-        depth = self.correct_height_map_small(depth)
-        height_map = depth.copy()
-
-        ## generate contact mask
-        pressing_height_pix = press_depth * 1000 / psp.pixmm_small
-        contact_mask = (height_map-(self.bg_depth_small)) > pressing_height_pix * 0.2
-
-        # smooth out the soft contact
-        zq_back = height_map.copy()
-        kernel_size = [21,11,5]
-        for k in range(len(kernel_size)):
-            height_map = cv2.GaussianBlur(height_map.astype(np.float32),(kernel_size[k],kernel_size[k]),0)
-            height_map[contact_mask] = zq_back[contact_mask]
-        # height_map = cv2.GaussianBlur(height_map.astype(np.float32),(5,5),0)
-
-        # generate gradients
-        grad_mag, grad_dir = generate_normals(height_map)
-        # end = time.time()
-        # print("height map process time is ", end-start)
-
-        # simulate raw image
-        # start = time.time()
-        grad_mag = torch.from_numpy(grad_mag).to(self.device)
-        grad_dir = torch.from_numpy(grad_dir).to(self.device)
-
-        sim_img_r = np.zeros((psp.h_small,psp.w_small,3))
-        idx_x = torch.floor(grad_mag/self.x_binr_small).long()
-        idx_y = torch.floor((grad_dir+np.pi)/self.y_binr_small).long()
-
-        params_r = self.calib_data_small.grad_r[idx_x,idx_y,:]
-        params_r = params_r.reshape((psp.h_small*psp.w_small), params_r.shape[2])
-        params_g = self.calib_data_small.grad_g[idx_x,idx_y,:]
-        params_g = params_g.reshape((psp.h_small*psp.w_small), params_g.shape[2])
-        params_b = self.calib_data_small.grad_b[idx_x,idx_y,:]
-        params_b = params_b.reshape((psp.h_small*psp.w_small), params_b.shape[2])
-
-        est_r = torch.sum(self.A_small * params_r,axis = 1)
-        est_g = torch.sum(self.A_small * params_g,axis = 1)
-        est_b = torch.sum(self.A_small * params_b,axis = 1)
-        sim_img_r[:,:,0] = est_r.reshape((psp.h_small,psp.w_small)).numpy()
-        sim_img_r[:,:,1] = est_g.reshape((psp.h_small,psp.w_small)).numpy()
-        sim_img_r[:,:,2] = est_b.reshape((psp.h_small,psp.w_small)).numpy()
-
-        # add back ground
-        tactile_img = sim_img_r + self.real_bg_small
-        # end = time.time()
-        # print("simulate time is ", end-start)
-        return height_map, contact_mask, tactile_img
 
 if __name__ == "__main__":
     # load object
