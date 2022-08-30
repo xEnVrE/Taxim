@@ -174,10 +174,12 @@ class TacRender:
 
 
     def offline_render(self):
-        r = pyrender.OffscreenRenderer(viewport_width=config.img_width, viewport_height=config.img_height)
+        # r = pyrender.OffscreenRenderer(viewport_width=config.img_width, viewport_height=config.img_height)
+        r = pyrender.OffscreenRenderer(viewport_width=config.img_height, viewport_height=config.img_width)
         flags = pyrender.constants.RenderFlags.DEPTH_ONLY
         # start = time.time()
         depth = r.render(self.scene, flags = flags)
+        depth = cv2.rotate(depth, cv2.ROTATE_90_CLOCKWISE)
         # end = time.time()
         r.delete()
         # print("render time is" + str(end-start))
