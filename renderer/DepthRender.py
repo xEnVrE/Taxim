@@ -216,9 +216,9 @@ class TacRender:
         est_r = torch.sum(self.A * params_r,axis = 1)
         est_g = torch.sum(self.A * params_g,axis = 1)
         est_b = torch.sum(self.A * params_b,axis = 1)
-        sim_img_r[:,:,0] = est_r.reshape((psp.h,psp.w)).numpy()
-        sim_img_r[:,:,1] = est_g.reshape((psp.h,psp.w)).numpy()
-        sim_img_r[:,:,2] = est_b.reshape((psp.h,psp.w)).numpy()
+        sim_img_r[:,:,0] = est_r.reshape((psp.h,psp.w)).cpu().numpy()
+        sim_img_r[:,:,1] = est_g.reshape((psp.h,psp.w)).cpu().numpy()
+        sim_img_r[:,:,2] = est_b.reshape((psp.h,psp.w)).cpu().numpy()
 
         # add back ground
         tactile_img = sim_img_r + self.real_bg
