@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # define contact orientation range
     shear_range = 15.0
     # define contact vertex
-    vertex_idx = 242768
+    vertex_idx = 154087
 
     theta = np.radians(shear_range)
     z = np.random.uniform(low=np.cos(theta),high=1.0,size=(1,))[0]
@@ -44,7 +44,6 @@ if __name__ == "__main__":
         tacRender.live_render()
     else:
         depth = tacRender.offline_render()
-        print(type(depth))
         height_map, contact_mask, tactile_img = tacRender.taxim_render(depth, press_depth)
         cv2.imwrite(save_path+"/height_"+str(press_depth*1000)+"_"+obj_name+".jpg", height_map)
         cv2.imwrite(save_path+"/contact_mask_"+str(press_depth*1000)+"_"+obj_name+".jpg", 255*contact_mask.astype("uint8"))
